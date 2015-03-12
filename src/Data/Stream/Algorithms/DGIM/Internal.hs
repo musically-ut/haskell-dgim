@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 module Data.Stream.Algorithms.DGIM.Internal (
   -- * Type (with constructors)
     DGIM(..)
@@ -59,7 +60,7 @@ partitionEq bucketsQ k =
 
 
 insert :: a -> DGIM a -> DGIM a
-insert v dgim =
+insert !v dgim =
     let dgimNew = dropLastIfNeeded $ incrIndex dgim in
     if dgimPredicate dgim v
       then addOne dgimNew
