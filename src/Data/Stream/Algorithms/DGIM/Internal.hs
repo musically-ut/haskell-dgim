@@ -1,4 +1,5 @@
 {-# LANGUAGE BangPatterns #-}
+-- TODO: Move from dequeue to Data.Sequence
 module Data.Stream.Algorithms.DGIM.Internal (
   -- * Type (with constructors)
     DGIM(..)
@@ -41,6 +42,7 @@ mkDGIM accuracy k predicate =
       DGIM predicate DQ.empty numBuckets k 0
 
 
+-- FIX: only the last two buckets should be combined, not all of them.
 partitionEq :: DQ.BankersDequeue Bucket
             -> Integer
             -> Maybe (Bucket, DQ.BankersDequeue Bucket)
@@ -77,9 +79,11 @@ insert !v dgim =
       Nothing -> bs
       Just (B lastIdx lastCountLog2, rest) ->
         melt r $ DQ.pushFront rest (B lastIdx (lastCountLog2 + 1))
+
     addOne dg =
         let (buckets, idx, r) = (dgimBuckets dg, dgimCurrentIdx dg, dgimMaxSameBucket dg) in
-        dg { dgimBuckets = melt r $ DQ.pushFront buckets (B idx 1) }
+        dg { dgimBuckets = melt r $ DQ.pushFront buckets (B idx 0) }
+
     dropLastIfNeeded dg =
         case DQ.last $ dgimBuckets dg of
             Nothing           -> dg
