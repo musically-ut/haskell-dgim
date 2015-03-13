@@ -6,6 +6,7 @@ module Data.Stream.Algorithms.DGIM.Internal (
   -- * External interface
   , mkDGIM
   , insert
+  , insert_
   , query
 ) where
 
@@ -59,6 +60,12 @@ partitionEq bucketsQ k =
         _                 -> (l, lastBucket, q)
 
 
+incrIndex :: DGIM a -> DGIM a
+incrIndex dg = dg { dgimCurrentIdx = dgimCurrentIdx dg + 1 }
+
+insert_ :: DGIM a -> DGIM a
+insert_ = incrIndex
+
 insert :: a -> DGIM a -> DGIM a
 insert !v dgim =
     let dgimNew = dropLastIfNeeded $ incrIndex dgim in
@@ -66,7 +73,6 @@ insert !v dgim =
       then addOne dgimNew
       else dgimNew
   where
-    incrIndex dg = dg { dgimCurrentIdx = dgimCurrentIdx dg + 1 }
     melt r bs = case partitionEq bs r of
       Nothing -> bs
       Just (B lastIdx lastCountLog2, rest) ->

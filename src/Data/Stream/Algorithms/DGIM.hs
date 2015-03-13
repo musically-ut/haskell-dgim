@@ -5,6 +5,7 @@ module Data.Stream.Algorithms.DGIM (
   -- * External interface
   , mkDGIM
   , insert
+  , insert_
   , query
 ) where
 
