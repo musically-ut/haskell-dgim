@@ -4,7 +4,7 @@
 name:                dgim
 version:             0.0.1
 synopsis:            Implementation of DGIM algorithm
--- description:         
+description:         A basic implementation of the DGIM algorithm for counting the occurences of certain elements in a fixed length prefix of a stream.
 license:             MIT
 license-file:        LICENSE
 author:              Utkarsh Upadhyay
@@ -24,6 +24,10 @@ library
   build-depends:       base >=4.7 && <4.8
   hs-source-dirs:      src
   default-language:    Haskell2010
+
+source-repository head
+  type:                git
+  location:            git://github.com/musically-ut/haskell-dgim.git
 
 Test-Suite dgim-test
   type:                detailed-0.9
