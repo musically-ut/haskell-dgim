@@ -9,10 +9,11 @@ license:             MIT
 license-file:        LICENSE
 author:              Utkarsh Upadhyay
 maintainer:          musically.ut@gmail.com
--- copyright:           
-category:            Data
+stability:           alpha
+homepage:            https://github.com/musically-ut/haskell-dgim
+bug-reports:         https://github.com/musically-ut/haskell-dgim/issues/
+category:            Data, Algorithms
 build-type:          Simple
--- extra-source-files:  
 cabal-version:       >=1.10
 
 library
