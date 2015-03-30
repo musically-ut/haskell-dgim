@@ -1,2 +1,4 @@
 :set -Wall
 :set +m
+:set -fno-warn-type-defaults
+:set -fno-warn-unused-do-bind
