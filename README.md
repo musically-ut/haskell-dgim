@@ -1,6 +1,6 @@
 # haskell-dgim
 
-Implementation of the DGIM algorithm in Haskell.
+This is a Haskell implementation of the [Datar-Gionis-Indyk-Motwani algorithm](http://www-cs-students.stanford.edu/~datar/papers/sicomp_streams.pdf) for approximately counting occurences of certain elements in a (very large) prefix of a (possibly infinite) stream.
 
 ## Installation
 
