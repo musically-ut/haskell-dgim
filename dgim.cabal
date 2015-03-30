@@ -22,7 +22,6 @@ library
   -- other-extensions:    
   ghc-options:         -Wall -fwarn-incomplete-patterns
   build-depends:       base >=4.7 && <4.8
-                     , vector >= 0.10.12.2
   hs-source-dirs:      src
   default-language:    Haskell2010
 
@@ -35,4 +34,3 @@ Test-Suite dgim-test
                      , Cabal >= 1.20.0
                      , QuickCheck >= 2.4
                      , dgim >= 0.0.1
-                     , vector >= 0.10.12.2
