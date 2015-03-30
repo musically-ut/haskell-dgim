@@ -26,6 +26,7 @@ tests = return [Test $ TestInstance (runQuickCheck checkAccuracy)
 
 
 data Elem = Zero | One deriving (Eq, Show)
+
 instance Q.Arbitrary Elem where
   arbitrary = Q.elements [Zero, One]
 
@@ -35,17 +36,17 @@ toNum :: Elem -> Integer
 toNum Zero = 0
 toNum One  = 1
 
-countOnes :: Stream -> Integer
-countOnes stream = sum $ map toNum stream
+countOnes :: Stream -> Int -> Integer
+countOnes stream queryLen = sum $ map toNum $ take queryLen stream
 
 checkAccuracy :: Stream -> Bool
 checkAccuracy stream =
   let accuracy = 0.99 in
   let streamLen = fromIntegral $ length stream in
-  let truth = countOnes stream in
+  let queryLen = streamLen `div` 2 in
+  let truth    = countOnes stream queryLen in
   let dgim = foldr DGIM.insert
-                   (DGIM.mkDGIM accuracy streamLen (== One))
-                   stream
-             in
-  let prediction = DGIM.query dgim streamLen in
+                   (DGIM.mkDGIM accuracy (fromIntegral queryLen) (== One))
+                   stream in
+  let prediction = DGIM.queryLen dgim (fromIntegral queryLen) in
   abs (fromIntegral $ truth - prediction) <= (1.0 - accuracy) * fromIntegral truth

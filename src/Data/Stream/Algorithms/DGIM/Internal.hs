@@ -1,24 +1,28 @@
 {-# LANGUAGE BangPatterns #-}
--- TODO: Move from dequeue to Data.Sequence
+{-# LANGUAGE RecordWildCards #-}
 module Data.Stream.Algorithms.DGIM.Internal (
   -- * Type (with constructors)
     DGIM(..)
 
-  -- * External interface
+  -- * Creation
   , mkDGIM
+
+  -- * Insertion
   , insert
   , insert_
-  , query
-) where
 
-import qualified Data.Dequeue  as DQ
-import qualified Data.Foldable as F
+  -- * Querying
+  , querySince
+  , queryAll
+  , queryLen
+
+) where
 
 import Control.Exception ( assert )
 
-type Index = Integer
-type NumOnesLog10 = Integer
-data Bucket = B !Index !NumOnesLog10 deriving (Show)
+type Index        = Integer
+type NumOnesLog2  = Integer
+data Bucket       = B !Index !NumOnesLog2 deriving (Show)
 
 getIndex :: Bucket -> Index
 getIndex (B idx _) = idx
@@ -26,41 +30,29 @@ getIndex (B idx _) = idx
 getCount :: Bucket -> Integer
 getCount (B _ val) = 2 ^ val
 
+
+-- TODO: The index can only increase by one at a time.
+-- Should create a time-stamp dependent version and provide this as a simpler
+-- interface.
 data DGIM a = DGIM {
-    -- TODO: Generalize to a predicate function
     dgimPredicate     :: !(a -> Bool)
-  , dgimBuckets       :: !(DQ.BankersDequeue Bucket)
+  , dgimBuckets       :: ![Bucket]
   , dgimMaxSameBucket :: !Integer
   , dgimCliff         :: !Integer
   , dgimCurrentIdx    :: !Integer
   }
 
+instance Show (DGIM a) where
+    show DGIM{..} = "r = "       ++ (show dgimMaxSameBucket) ++ " " ++
+                    "cliff = "   ++ (show dgimCliff        ) ++ " " ++
+                    "idx = "     ++ (show dgimCurrentIdx   ) ++ " " ++
+                    "buckets = " ++ (show dgimBuckets      )
+
 mkDGIM :: (RealFrac a, Eq b) => a -> Integer -> (b -> Bool) -> DGIM b
 mkDGIM accuracy k predicate =
     assert (accuracy >= 0.0 || accuracy < 1.0) $
       let numBuckets = ceiling (1 / (1 - accuracy)) in
-      DGIM predicate DQ.empty numBuckets k 0
-
-
--- FIX: only the last two buckets should be combined, not all of them.
-partitionEq :: DQ.BankersDequeue Bucket
-            -> Integer
-            -> Maybe (Bucket, DQ.BankersDequeue Bucket)
-partitionEq bucketsQ k =
-    case DQ.popFront bucketsQ of
-      (Nothing, _) -> Nothing
-      (Just b, remainingBuckets) ->
-          case go b remainingBuckets 0 of
-            (l, lastBucket, restQ) | l == k - 1 -> Just (lastBucket, restQ)
-            _                                   -> Nothing
-  where
-    go lastBucket@(B _ val) q l =
-      case DQ.popFront q of
-        _ | l == (k - 1)  -> (l, lastBucket, q)
-        (Just newBucket@(B _ newVal), restQ) | val == newVal
-                          -> go newBucket restQ (l + 1)
-        _                 -> (l, lastBucket, q)
-
+      DGIM predicate [] numBuckets k 0
 
 incrIndex :: DGIM a -> DGIM a
 incrIndex dg = dg { dgimCurrentIdx = dgimCurrentIdx dg + 1 }
@@ -69,34 +61,44 @@ insert_ :: DGIM a -> DGIM a
 insert_ = incrIndex
 
 insert :: a -> DGIM a -> DGIM a
-insert !v dgim =
-    let dgimNew = dropLastIfNeeded $ incrIndex dgim in
-    if dgimPredicate dgim v
-      then addOne dgimNew
-      else dgimNew
-  where
-    melt r bs = case partitionEq bs r of
-      Nothing -> bs
-      Just (B lastIdx lastCountLog2, rest) ->
-        melt r $ DQ.pushFront rest (B lastIdx (lastCountLog2 + 1))
+insert !v !dgim =
+     let newElem = if dgimPredicate dgim v then [ B (dgimCurrentIdx dgim + 1) 0 ] else [] in
+     incrIndex $ dgim { dgimBuckets = reverse $ (go newElem (dgimBuckets dgim) (fromIntegral $ length newElem) 0) }
+   where
+     go newBuckets oldBuckets similarBuckets lastBucketValue =
+         case oldBuckets of
+           -- Visited all the buckets
+           [] -> newBuckets
 
-    addOne dg =
-        let (buckets, idx, r) = (dgimBuckets dg, dgimCurrentIdx dg, dgimMaxSameBucket dg) in
-        dg { dgimBuckets = melt r $ DQ.pushFront buckets (B idx 0) }
+           -- The rest of the buckets are past the time-zone cliff, drop them
+           ((B bucketIdx _):_) | dgimCurrentIdx dgim - bucketIdx > dgimCliff dgim
+             -> newBuckets
 
-    dropLastIfNeeded dg =
-        case DQ.last $ dgimBuckets dg of
-            Nothing           -> dg
-            Just (B endIdx _) ->
-                if (dgimCurrentIdx dg - endIdx) > dgimCliff dg then
-                    dg { dgimBuckets = snd $ DQ.popBack $ dgimBuckets dg }
-                else dg
+           -- Combine the rth and r+1th bucket into a larger bucket
+           ((B idxR vR):(B _ vR1):rest) | similarBuckets  == dgimMaxSameBucket dgim - 1 &&
+                                          lastBucketValue == vR &&
+                                          vR              == vR1
+             -> go newBuckets ((B idxR (lastBucketValue + 1)):rest) similarBuckets lastBucketValue
 
-query :: DGIM a -> Integer -> Integer
-query dgim till =
-    sumAll $ filter ((<= till) . getIndex) $ F.toList $ dgimBuckets dgim
+           -- See another bucket with the same value
+           (x@(B _ vR):rest) | lastBucketValue == vR
+             -> go (x:newBuckets) rest (similarBuckets + 1) lastBucketValue
+
+           -- See a bucket with a different value
+           (x@(B _ vR):rest) -- | lastBucketValue /= vR
+             -> go (x:newBuckets) rest 1 vR
+
+
+querySince :: DGIM a -> Integer -> Integer
+querySince dgim since =
+    sumAll $ filter ((>= since) . getIndex) $ dgimBuckets dgim
   where
     sumAll []         = 0
-    sumAll [x]        = getCount x `div` 2
+    sumAll [x]        = let c = getCount x  in 1 + ((c - 1) `div` 2)
     sumAll (x:y:rest) = getCount x + sumAll (y:rest)
 
+queryAll :: DGIM a -> Integer
+queryAll dgim = querySince dgim (dgimCurrentIdx dgim - dgimCliff dgim)
+
+queryLen :: DGIM a -> Integer -> Integer
+queryLen dgim numPastEntries = querySince dgim (dgimCurrentIdx dgim - numPastEntries + 1)
