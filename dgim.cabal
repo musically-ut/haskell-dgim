@@ -1,5 +1,5 @@
 name:                dgim
-version:             0.0.2
+version:             0.0.3
 synopsis:            Implementation of DGIM algorithm
 description:         A basic implementation of the DGIM algorithm for counting the occurrence of certain elements in a fixed length prefix of a stream.
 license:             MIT
