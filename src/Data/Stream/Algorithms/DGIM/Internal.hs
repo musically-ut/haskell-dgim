@@ -22,6 +22,7 @@ import Control.Exception ( assert )
 
 type Index        = Integer
 type NumOnesLog2  = Integer
+
 data Bucket       = B !Index !NumOnesLog2 deriving (Show)
 
 getIndex :: Bucket -> Index
@@ -30,10 +31,13 @@ getIndex (B idx _) = idx
 getCount :: Bucket -> Integer
 getCount (B _ val) = 2 ^ val
 
+{- TODO: The index can only increase by one at a time.
+   Should create a time-stamp dependent version and provide this as a simpler
+   interface.
+-}
 
--- TODO: The index can only increase by one at a time.
--- Should create a time-stamp dependent version and provide this as a simpler
--- interface.
+-- | The core data structure which contains the current state as
+-- well as the parameters needed for operation.
 data DGIM a = DGIM {
     dgimPredicate     :: !(a -> Bool)
   , dgimBuckets       :: ![Bucket]
@@ -48,6 +52,11 @@ instance Show (DGIM a) where
                     "idx = "     ++ (show dgimCurrentIdx   ) ++ " " ++
                     "buckets = " ++ (show dgimBuckets      )
 
+
+-- | Create a new DGIM structure given:
+--  - Required accuracy
+--  - Size of the stream to operate on
+--  - Predicate to determine if an element should be counted
 mkDGIM :: (RealFrac a, Eq b) => a -> Integer -> (b -> Bool) -> DGIM b
 mkDGIM accuracy k predicate =
     assert (accuracy >= 0.0 || accuracy < 1.0) $
@@ -57,9 +66,11 @@ mkDGIM accuracy k predicate =
 incrIndex :: DGIM a -> DGIM a
 incrIndex dg = dg { dgimCurrentIdx = dgimCurrentIdx dg + 1 }
 
+-- | Insert an element which does not count
 insert_ :: DGIM a -> DGIM a
 insert_ = incrIndex
 
+-- | Insert an element into the stream
 insert :: a -> DGIM a -> DGIM a
 insert !v !dgim =
      let newElem = if dgimPredicate dgim v then [ B (dgimCurrentIdx dgim + 1) 0 ] else [] in
@@ -89,6 +100,7 @@ insert !v !dgim =
              -> go (x:newBuckets) rest 1 vR
 
 
+-- | Query how many elements have been counted since a time-stamp
 querySince :: DGIM a -> Integer -> Integer
 querySince dgim since =
     sumAll $ filter ((>= since) . getIndex) $ dgimBuckets dgim
@@ -97,8 +109,12 @@ querySince dgim since =
     sumAll [x]        = let c = getCount x  in 1 + ((c - 1) `div` 2)
     sumAll (x:y:rest) = getCount x + sumAll (y:rest)
 
+-- | Query how many elements have been counted in the remembered suffix of the
+-- stream
 queryAll :: DGIM a -> Integer
 queryAll dgim = querySince dgim (dgimCurrentIdx dgim - dgimCliff dgim)
 
+-- | Query how many elements in the given number of recent entries have been
+-- counted.
 queryLen :: DGIM a -> Integer -> Integer
 queryLen dgim numPastEntries = querySince dgim (dgimCurrentIdx dgim - numPastEntries + 1)
