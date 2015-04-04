@@ -23,6 +23,8 @@ import Control.Exception ( assert )
 type Index        = Integer
 type NumOnesLog2  = Integer
 
+-- | The bucket contains the last index and the logarithm (with base 2) of the
+-- number of counted elements it contains
 data Bucket       = B !Index !NumOnesLog2 deriving (Show)
 
 getIndex :: Bucket -> Index
@@ -96,7 +98,7 @@ insert !v !dgim =
              -> go (x:newBuckets) rest (similarBuckets + 1) lastBucketValue
 
            -- See a bucket with a different value
-           (x@(B _ vR):rest) -- | lastBucketValue /= vR
+           (x@(B _ vR):rest) -- when lastBucketValue /= vR
              -> go (x:newBuckets) rest 1 vR
 
 
