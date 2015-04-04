@@ -4,8 +4,10 @@ This is a Haskell implementation of the [Datar-Gionis-Indyk-Motwani algorithm](h
 
 ## Installation
 
+This package is now available on Hackage with the name [dgim](https://hackage.haskell.org/package/dgim). Hoewver, it is in the alpha stage and the API is likely to change in the future.
+
+### Bleeding edge
+
 Install `cabalg`, if you do not already have it with `cabal install cabalg`.
 
     cabalg https://github.com/musically-ut/haskell-dgim
-
-
