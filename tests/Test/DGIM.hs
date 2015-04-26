@@ -1,10 +1,10 @@
 {-# LANGUAGE PackageImports, NamedFieldPuns #-}
 module Test.DGIM ( tests ) where
 
-import Data.Stream.Algorithms.DGIM.Internal as DGIM
+import qualified Data.Stream.Algorithms.DGIM.Internal as DGIM
 
 import qualified Test.QuickCheck as Q
-import Distribution.TestSuite as TS
+import qualified Distribution.TestSuite as TS
 
 toTSResult :: Q.Result -> TS.Result
 toTSResult Q.Success {}         = TS.Pass
@@ -15,15 +15,18 @@ runQuickCheck :: Q.Testable p => p -> IO TS.Progress
 runQuickCheck prop = do
         qres <- Q.quickCheckWithResult Q.stdArgs {Q.maxSuccess = 30,
                                                   Q.maxSize = 20} prop
-        return $ (Finished . toTSResult) qres
+        return $ (TS.Finished . toTSResult) qres
 
-tests :: IO [Test]
-tests = return [Test $ TestInstance (runQuickCheck checkAccuracy)
+tests :: IO [TS.Test]
+tests = return [TS.Test $ TS.TestInstance (runQuickCheck checkAccuracy)
                                     "checkAccuracy" ["empty-tag"] [] undefined
-                -- Test $ TestInstance (runQuickCheck propCheckP1)
+                -- TS.Test $ TS.TestInstance (runQuickCheck propCheckP1)
                 --                     "propCheckP1" [] [] undefined
                 ]
 
+-------------------
+-- Set up the tests
+-------------------
 
 data Elem = Zero | One deriving (Eq, Show)
 
